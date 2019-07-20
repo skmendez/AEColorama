@@ -1,7 +1,7 @@
 import configparser
 from distutils.util import strtobool
 
-__all__ = ["DEVICE_INDEX", "RATE", "CHANNELS", "AS_LOOPBACK", "FPS"]
+__all__ = ["DEVICE_INDEX", "RATE", "CHANNELS", "AS_LOOPBACK", "FPS", "FRAMES_PER_BUFFER"]
 parser = configparser.ConfigParser()
 CONFIG_FILE = "stream.ini"
 
@@ -70,6 +70,9 @@ AS_LOOPBACK = strtobool(parser["STREAM"]["as_loopback"])
 
 FPS = 60
 """Desired refresh rate of the visualization (frames per second)"""
+
+FRAMES_PER_BUFFER = int(RATE / FPS)
+"""Number of frames to sample each read"""
 
 if __name__ == '__main__':
     gen_ini()

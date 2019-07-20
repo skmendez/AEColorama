@@ -4,20 +4,9 @@ import config
 import numpy as np
 
 from colors import Color, ColorWheel, process_image
-import config
+from stream import stream
 from dsp import ExpFilter
 
-p = pyaudio.PyAudio()
-
-frames_per_buffer = int(config.MIC_RATE / config.FPS)
-device = p.get_default_output_device_info()
-stream = p.open(format=pyaudio.paInt16,
-                channels=2,
-                rate=config.MIC_RATE,
-                input=True,
-                frames_per_buffer=frames_per_buffer,
-                input_device_index=config.DEVICE_INDEX,
-                as_loopback=True)
 r = Color(255, 0, 0)
 g = Color(0, 255, 0)
 b = Color(0, 0, 255)
@@ -33,18 +22,19 @@ m3 = Color(53, 232, 206)
 wheel = ColorWheel({0: m1, 54: m2, 118: m3, 138: m3, 202: m2})
 cv2.namedWindow('image1', cv2.WINDOW_NORMAL)
 cv2.namedWindow('image2', cv2.WINDOW_NORMAL)
-arr1 = cv2.cvtColor(cv2.imread("../maxresdefault.jpg"), cv2.COLOR_RGB2GRAY)
-arr2 = cv2.cvtColor(cv2.imread("../scale.png"), cv2.COLOR_RGB2GRAY)
+arr1 = cv2.cvtColor(cv2.imread("images/maxresdefault.jpg"), cv2.COLOR_RGB2GRAY)
+arr2 = cv2.cvtColor(cv2.imread("images/scale.png"), cv2.COLOR_RGB2GRAY)
 table = wheel.generate_lookup()
 total = 0
 power_filter = ExpFilter(0.1, 0.1)
+power_filter = ExpFilter(.9,.9)
 while True:
     y = np.mean(
-        np.fromstring(stream.read(512, exception_on_overflow=False), dtype=np.int16).reshape(-1, 2),
+        np.frombuffer(stream.read(config.FRAMES_PER_BUFFER, exception_on_overflow=False), dtype=np.int16).reshape(-1, config.CHANNELS),
         axis=1)
-    y = y.astype(np.float32)
     stream.read(stream.get_read_available(), exception_on_overflow=False)
-    power = np.mean(y.astype(float)**2)/10000000
+    power = np.mean((y.astype(np.float64)/2**16)**2)
+    power *= 450
     print(power)
     total += power_filter.update(power)
 
