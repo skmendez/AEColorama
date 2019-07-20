@@ -26,15 +26,14 @@ arr1 = cv2.cvtColor(cv2.imread("images/maxresdefault.jpg"), cv2.COLOR_RGB2GRAY)
 arr2 = cv2.cvtColor(cv2.imread("images/scale.png"), cv2.COLOR_RGB2GRAY)
 table = wheel.generate_lookup()
 total = 0
-power_filter = ExpFilter(0.1, 0.1)
-power_filter = ExpFilter(.9,.9)
+power_filter = ExpFilter(0.15, 0.15)
 while True:
     y = np.mean(
         np.frombuffer(stream.read(config.FRAMES_PER_BUFFER, exception_on_overflow=False), dtype=np.int16).reshape(-1, config.CHANNELS),
         axis=1)
     stream.read(stream.get_read_available(), exception_on_overflow=False)
     power = np.mean((y.astype(np.float64)/2**16)**2)
-    power *= 450
+    power *= 600
     print(power)
     total += power_filter.update(power)
 
