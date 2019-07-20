@@ -10,6 +10,7 @@ from dsp import ExpFilter
 p = pyaudio.PyAudio()
 
 frames_per_buffer = int(config.MIC_RATE / config.FPS)
+device = p.get_default_output_device_info()
 stream = p.open(format=pyaudio.paInt16,
                 channels=2,
                 rate=config.MIC_RATE,
