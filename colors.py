@@ -5,57 +5,50 @@ import cv2
 import numpy as np
 from skimage import img_as_float, img_as_ubyte
 
-WHEEL_SIZE = 2 ** 8
-
-
-def interp(c1, c2, ratio):
-    v1 = cv2.cvtColor(img_as_float(c1.rgb)[np.newaxis, np.newaxis].astype(np.float32), cv2.COLOR_RGB2LAB)
-    v2 = cv2.cvtColor(img_as_float(c2.rgb)[np.newaxis, np.newaxis].astype(np.float32), cv2.COLOR_RGB2LAB)
-    new_lab = (v1 + (v2 - v1) * ratio)
-    new_rgb = cv2.cvtColor(new_lab, cv2.COLOR_LAB2RGB)[0][0]
-    # TODO: Catch warning
-    with warnings.catch_warnings():
-        new_rgb = img_as_ubyte(new_rgb)
-    return Color(*new_rgb)
+TYPE = 'uint8'
+WHEEL_SIZE = (2 ** 8) ** np.dtype(TYPE).itemsize
 
 
 class Color:
-    __slots__ = ["r", "g", "b", "a", "rgb", "lab"]
+    __slots__ = ["r", "g", "b", "a"]
 
-    def __init__(self, r: int, g: int, b: int, a=255):
+    def __init__(self, r: int, g: int, b: int, a=None):
         self.r = r
         self.g = g
         self.b = b
         self.a = a
-        self.rgb = np.uint8([r, g, b])
-        self.lab = cv2.cvtColor(self.rgb[np.newaxis, np.newaxis], cv2.COLOR_RGB2LAB)[0][0]
 
-    @classmethod
-    def from_lab(cls, lab):
-        rgb = cv2.cvtColor(lab[np.newaxis, np.newaxis], cv2.COLOR_LAB2RGB)[0][0]
-        return cls(*rgb)
+    @property
+    def rgb(self):
+        if self.a is not None:
+            return np.uint8([self.r, self.g, self.b, self.a])
+        else:
+            return np.uint8([self.r, self.g, self.b])
 
     def __repr__(self):
-        return f"Color({self.r}, {self.g}, {self.b})"
-
-    def interp(self, color, ratio):
-        if ratio == 0:
-            return self
-        elif ratio == 1:
-            return color
-        elif 0 < ratio < 1:
-            other_lab = color.lab.astype(np.double)
-            my_lab = self.lab.astype(np.double)
-            new_lab = (my_lab + (other_lab - my_lab) * ratio).astype(np.uint8)
-            return self.from_lab(new_lab)
+        if self.a is not None:
+            return f"Color({self.r}, {self.g}, {self.b}, {self.a})"
         else:
-            raise ValueError("Ratio is between 0 and 1 inclusive")
+            return f"Color({self.r}, {self.g}, {self.b})"
 
-    def basic_interp(self, color, ratio):
-        a = self.rgb.astype(np.double)
-        b = color.rgb.astype(np.double)
-        new_rgb = (a + (b - a) * ratio).astype(np.uint8)
-        return Color(*new_rgb)
+    def interp(self, other, ratio):
+        colors = [self, other]
+        if sum(color.a is None for color in colors) == 1:  # We'll cast them both to having an alpha channel
+            for color in colors:
+                color.a = 255 if color.a is None else color.a
+        to_float = (img_as_float(color.rgb[:3]).astype(np.float32) for color in colors)
+        labs = [cv2.cvtColor(img_float[np.newaxis, np.newaxis], cv2.COLOR_RGB2LAB) for img_float in to_float]
+
+        interp_lab = labs[0] + (labs[1] - labs[0]) * ratio
+        interp_float_rgb = cv2.cvtColor(interp_lab, cv2.COLOR_LAB2RGB)[0, 0]
+        # TODO: Catch warning
+        with warnings.catch_warnings():
+            new_rgb = img_as_ubyte(interp_float_rgb)
+        if colors[0].a is not None:
+            new_a = round(colors[0].a + (colors[1].a - colors[0].a) * ratio)
+        else:
+            new_a = None
+        return Color(*new_rgb, new_a)
 
 
 class ColorWheel:
@@ -76,7 +69,7 @@ class ColorWheel:
         dist = val - deg_1
         diff = (deg_2 - deg_1) % WHEEL_SIZE
         ratio = dist/diff
-        return col_1.basic_interp(col_2, ratio)
+        return col_1.interp(col_2, ratio)
 
     def generate_lookup(self):
         return np.asarray([self.get_val(val).rgb for val in range(256)], dtype=np.uint8)
