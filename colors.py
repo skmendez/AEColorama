@@ -75,5 +75,13 @@ class ColorWheel:
         return np.asarray([self.get_val(val).rgb for val in range(256)], dtype=np.uint8)
 
 
+def table_from_cmap(cmap):
+    import matplotlib.pyplot as plt
+    if isinstance(cmap, str):
+        cmap = plt.get_cmap(cmap)
+    arr = np.asarray(cmap.colors)[np.newaxis]
+    return cv2.resize(arr, (256, 1))[0]
+
+
 def process_image(table, img):
     return table[img].reshape((*img.shape, table.shape[1]))
