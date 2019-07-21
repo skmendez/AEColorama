@@ -16,7 +16,7 @@ y = Color(255, 255, 0)
 m1 = Color(39, 103, 191)
 m2 = Color(32, 175, 219)
 m3 = Color(53, 232, 206)
-wheel = ColorWheel({0: b, 108: c, 128: g, 148: c})
+wheel = ColorWheel({0: m1, 54: m2, 118: m3, 138: m3, 202: m2})
 
 
 class Colorama:
@@ -32,29 +32,32 @@ class Colorama:
             self._generated = True
 
 
-table = table_from_cmap('hsv')
+table = wheel.generate_lookup()
 
-image_wheels = [Colorama("circle.png", table),
+image_wheels = [Colorama("hands.jpg", table),
                 Colorama("scale.png", table)]
 
-# wheel = ColorWheel({0:r, 63:y, 85:g, 128:c, 171:b, 213:m}, True)
-# wheel = ColorWheel({0: m1, 54: m2, 118: m3, 138: m3, 202: m2})
 
 total = 0
-power_filter = ExpFilter(alpha_decay=0.075, alpha_rise=0.075)
+power_filter = ExpFilter(alpha_decay=0.2, alpha_rise=0.2)
+y_roll = np.random.rand(4, config.FRAMES_PER_BUFFER) / 1e16
 while True:
+
     y = np.mean(
-        np.fromstring(stream.read(config.FRAMES_PER_BUFFER, exception_on_overflow=False), dtype=np.int16).reshape(-1, 2),
-        axis=1)
-    y = y.astype(np.float32)
+        np.frombuffer(stream.read(config.FRAMES_PER_BUFFER, exception_on_overflow=False), dtype=np.int16).reshape(-1, 2),
+        axis=1)/2 ** 16
     stream.read(stream.get_read_available(), exception_on_overflow=False)
-    power = np.mean(y.astype(float)**2)/20000000
-    print(power)
+    y_roll[:-1] = y_roll[1:]
+    y_roll[-1, :] = np.copy(y)
+    y_data = np.concatenate(y_roll, axis=0)
+    inter = (y_data.astype(float)**2)
+    power = np.mean(inter)
+    power *= 10 ** config.GAIN
     total += power_filter.update(power)
 
     for iw in image_wheels:
         iw.create_window()
-        process = (iw.arr*3+int(total)).astype(np.uint8)
+        process = (iw.arr+int(total)).astype(np.uint8)
         out = iw.table.process_image(process)
         cv2.imshow(iw.filename, cv2.cvtColor(out, cv2.COLOR_BGR2RGB))
 
