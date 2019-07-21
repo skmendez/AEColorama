@@ -79,8 +79,11 @@ def table_from_cmap(cmap):
     import matplotlib.pyplot as plt
     if isinstance(cmap, str):
         cmap = plt.get_cmap(cmap)
-    arr = np.asarray(cmap.colors)[np.newaxis]
-    return cv2.resize(arr, (256, 1))[0]
+    lst = []
+    for x in range(WHEEL_SIZE):
+        lst.append(cmap(x/WHEEL_SIZE)[:3])
+
+    return (np.asarray(lst)*255).astype(np.uint8)
 
 
 def process_image(table, img):
