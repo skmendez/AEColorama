@@ -1,9 +1,8 @@
 import cv2
 import numpy as np
-import pyloudnorm as pyln
 
 import config
-from colors import Color, ColorWheel, process_image, table_from_cmap
+from colors import Color, ColorWheel, table_from_cmap
 from dsp import ExpFilter
 from stream import stream
 
@@ -19,7 +18,8 @@ m2 = Color(32, 175, 219)
 m3 = Color(53, 232, 206)
 wheel = ColorWheel({0: b, 108: c, 128: g, 148: c})
 
-class WheelImage:
+
+class Colorama:
     def __init__(self, filename, table):
         self.filename = filename
         self.arr = cv2.cvtColor(cv2.imread(f"images/{filename}"), cv2.COLOR_RGB2GRAY)
@@ -34,29 +34,28 @@ class WheelImage:
 
 table = table_from_cmap('hsv')
 
-image_wheels = [WheelImage("triangles.png", table),
-                WheelImage("scale.png", table)]
+image_wheels = [Colorama("circle.png", table),
+                Colorama("scale.png", table)]
 
 # wheel = ColorWheel({0:r, 63:y, 85:g, 128:c, 171:b, 213:m}, True)
 # wheel = ColorWheel({0: m1, 54: m2, 118: m3, 138: m3, 202: m2})
 
 total = 0
-power_filter = ExpFilter(0.1, 0.1)
+power_filter = ExpFilter(alpha_decay=0.075, alpha_rise=0.075)
 while True:
     y = np.mean(
-        np.fromstring(stream.read(512, exception_on_overflow=False), dtype=np.int16).reshape(-1, 2),
+        np.fromstring(stream.read(config.FRAMES_PER_BUFFER, exception_on_overflow=False), dtype=np.int16).reshape(-1, 2),
         axis=1)
     y = y.astype(np.float32)
     stream.read(stream.get_read_available(), exception_on_overflow=False)
-    power = np.mean(y.astype(float)**2)/10000000
+    power = np.mean(y.astype(float)**2)/20000000
     print(power)
     total += power_filter.update(power)
 
     for iw in image_wheels:
         iw.create_window()
-        process = (iw.arr+int(total)).astype(np.uint8)
-        out = process_image(iw.table, process)
-        print(out.shape)
+        process = (iw.arr*3+int(total)).astype(np.uint8)
+        out = iw.table.process_image(process)
         cv2.imshow(iw.filename, cv2.cvtColor(out, cv2.COLOR_BGR2RGB))
 
     if cv2.waitKey(5) & 0xFF == ord('q'):

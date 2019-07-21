@@ -68,7 +68,7 @@ CHANNELS = int(parser["STREAM"]["channels"])
 
 AS_LOOPBACK = strtobool(parser["STREAM"]["as_loopback"])
 
-FPS = 60
+FPS = 120
 """Desired refresh rate of the visualization (frames per second)"""
 
 FRAMES_PER_BUFFER = int(RATE / FPS)

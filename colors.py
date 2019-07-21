@@ -72,7 +72,7 @@ class ColorWheel:
         return col_1.interp(col_2, ratio)
 
     def generate_lookup(self):
-        return np.asarray([self.get_val(val).rgb for val in range(256)], dtype=np.uint8)
+        return Table(np.asarray([self.get_val(val).rgb for val in range(256)], dtype=np.uint8))
 
 
 def table_from_cmap(cmap):
@@ -83,8 +83,14 @@ def table_from_cmap(cmap):
     for x in range(WHEEL_SIZE):
         lst.append(cmap(x/WHEEL_SIZE)[:3])
 
-    return (np.asarray(lst)*255).astype(np.uint8)
+    return Table((np.asarray(lst)*255).astype(np.uint8))
 
 
-def process_image(table, img):
-    return table[img].reshape((*img.shape, table.shape[1]))
+class Table:
+    __slots__ = ["table"]
+
+    def __init__(self, table):
+        self.table = table
+
+    def process_image(self, img):
+        return self.table[img].reshape((*img.shape, self.table.shape[1]))
